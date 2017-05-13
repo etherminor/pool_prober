@@ -5,10 +5,10 @@ import requests
 import time
 
 
-_LAST_TS_METRIC = prometheus_client.Summary('last_hashrate_timestamp__seconds',
+_LAST_TS_METRIC = prometheus_client.Gauge('last_hashrate_timestamp_seconds',
     'The last reported timestamp associated with a data point.')
 
-_HASHRATE_METRIC = prometheus_client.Summary('hashrate',
+_HASHRATE_METRIC = prometheus_client.Gauge('hashrate',
     'The last reported hashrate.')
 
 
@@ -43,8 +43,8 @@ def _Main():
 	hashrate, last_ts = prober.GetLatestHashrate()
         print hashrate, datetime.datetime.fromtimestamp(
             last_ts/1000).strftime('%Y-%m-%d %H:%M:%S')
-        _HASHRATE_METRIC.observe(hashrate)
-        _LAST_TS_METRIC.observe(last_ts)
+        _HASHRATE_METRIC.set(hashrate)
+        _LAST_TS_METRIC.set(last_ts)
 	time.sleep(poll_interval_seconds)
 
 
