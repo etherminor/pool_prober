@@ -5,8 +5,8 @@ import requests
 import time
 
 
-_LAST_TS_METRIC = prometheus_client.Gauge('last_hashrate_timestamp_seconds',
-    'The last reported timestamp associated with a data point.')
+_LAST_TS_METRIC = prometheus_client.Gauge('last_hashrate_timestamp_ms',
+    'The last reported timestamp in ms associated with a data point.')
 
 _HASHRATE_METRIC = prometheus_client.Gauge('hashrate',
     'The last reported hashrate.')
