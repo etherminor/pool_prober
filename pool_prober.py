@@ -33,10 +33,37 @@ _AVG_DIFF_METRIC = prometheus_client.Gauge('avg_difficulty',
     'Difficulty for the rig. Will varry if mining on a port using VarDif.',
     ['worker'])
 
-class AlpereumProber(object):
+
+class EthermineProber(object):
+
+    _stats_url = 'https://ethermine.org/api/miner_new/'
+    all_stats = False
 
     def __init__(self, account):
-        self._stats_url = 'https://eiger.alpereum.net/api/miner_stats?address='
+        self._account = account
+
+    def GetLatestWorkerHashrate(self, worker):
+        r = requests.get('%s%s' % (self._stats_url, self._account))
+        worker_stats = r.json()['workers'][worker]
+        if worker_stats['reportedHashRate'].endswith(' MH/s'):
+            hr = int(float(
+                     worker_stats['reportedHashRate'].strip(' MH/s')) * 1000000)
+
+        return _MinerStats(
+            time=worker_stats['workerLastSubmitTime'] * 1000,
+            submitted_hashrate=hr,
+            hashrate=None,
+            avgdiff=None,
+            avgsharetime=None,
+            stale_hashrate=None)
+
+ 
+class AlpereumProber(object):
+
+    _stats_url = 'https://eiger.alpereum.net/api/miner_stats?address='
+    all_stats = True
+
+    def __init__(self, account):
         self._account = account
 
     def GetLatestWorkerHashrate(self, worker):
@@ -55,25 +82,18 @@ class AlpereumProber(object):
             avgsharetime=latest['avgsharetime'],
             stale_hashrate=latest['staleHashrate'])
          
-    def GetLatestHashrate(self):
-        r = requests.get(self._stats_url + self._account)
-        max_ts = 0
-        for row in r.json():
-           current_ts = row['time']
-           if current_ts > max_ts:
-               max_ts = current_ts
-               hashrate = row['submittedHashrate']
-        return _MinerStats(submittedHashrate=hashrate, time=max_ts)
-              
     
 def _Main():
-    # GEt these from flags.
+    # Get these from flags.
     poll_interval_seconds = 60
     port = 8000
     account = '0xf493999e090f3a1001d782326847742a1fa84c2c'
     worker = '2d1c01'
 
     prober = AlpereumProber(account)
+
+    # To monitor Ethermine Pool.
+    #prober = EthermineProber(account)
     # Start up the server to expose the metrics.
     prometheus_client.start_http_server(port)
 
@@ -81,12 +101,14 @@ def _Main():
 	stats = prober.GetLatestWorkerHashrate(worker)
         print stats, datetime.datetime.fromtimestamp(
             stats.time/1000).strftime('%Y-%m-%d %H:%M:%S')
-        _HASHRATE_METRIC.labels(worker).set(stats.hashrate)
+
         _SUBMITTED_HASHRATE_METRIC.labels(worker).set(stats.submitted_hashrate)
-        _STALE_HASHRATE_METRIC.labels(worker).set(stats.stale_hashrate)
-        _AVG_SHARE_TIME_METRIC.labels(worker).set(stats.avgsharetime)
-        _AVG_DIFF_METRIC.labels(worker).set(stats.avgdiff)
         _LAST_TS_METRIC.labels(worker).set(stats.time)
+	if prober.all_stats:
+            _HASHRATE_METRIC.labels(worker).set(stats.hashrate)
+            _STALE_HASHRATE_METRIC.labels(worker).set(stats.stale_hashrate)
+            _AVG_SHARE_TIME_METRIC.labels(worker).set(stats.avgsharetime)
+            _AVG_DIFF_METRIC.labels(worker).set(stats.avgdiff)
 	time.sleep(poll_interval_seconds)
 
 
