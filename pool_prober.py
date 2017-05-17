@@ -98,18 +98,22 @@ def _Main():
     prometheus_client.start_http_server(port)
 
     while True:
-	stats = prober.GetLatestWorkerHashrate(worker)
-        print stats, datetime.datetime.fromtimestamp(
-            stats.time/1000).strftime('%Y-%m-%d %H:%M:%S')
+        try:
+            stats = prober.GetLatestWorkerHashrate(worker)
+            print stats, datetime.datetime.fromtimestamp(
+                stats.time/1000).strftime('%Y-%m-%d %H:%M:%S')
+    
+            _SUBMITTED_HASHRATE_METRIC.labels(worker).set(stats.submitted_hashrate)
+            _LAST_TS_METRIC.labels(worker).set(stats.time)
+            if prober.all_stats:
+                _HASHRATE_METRIC.labels(worker).set(stats.hashrate)
+                _STALE_HASHRATE_METRIC.labels(worker).set(stats.stale_hashrate)
+                _AVG_SHARE_TIME_METRIC.labels(worker).set(stats.avgsharetime)
+                _AVG_DIFF_METRIC.labels(worker).set(stats.avgdiff)
+            time.sleep(poll_interval_seconds)
+        except:
+            print "Ran into an error with the api"
 
-        _SUBMITTED_HASHRATE_METRIC.labels(worker).set(stats.submitted_hashrate)
-        _LAST_TS_METRIC.labels(worker).set(stats.time)
-	if prober.all_stats:
-            _HASHRATE_METRIC.labels(worker).set(stats.hashrate)
-            _STALE_HASHRATE_METRIC.labels(worker).set(stats.stale_hashrate)
-            _AVG_SHARE_TIME_METRIC.labels(worker).set(stats.avgsharetime)
-            _AVG_DIFF_METRIC.labels(worker).set(stats.avgdiff)
-	time.sleep(poll_interval_seconds)
 
 
 if __name__ == '__main__':
